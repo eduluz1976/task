@@ -17,6 +17,10 @@
         }
     },
 
+    "require" : {
+        "eduluz1976/action":"*"
+    },
+
     "require-dev": {
         "phpunit/phpunit": "=7.0"
     }
