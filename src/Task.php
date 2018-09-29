@@ -4,7 +4,15 @@ namespace eduluz1976\task;
 use eduluz1976\action\Action;
 use eduluz1976\action\Parameters;
 
+/**
+ * Class Task
+ * @package eduluz1976\task
+ * @author Eduardo Luz <eduluz1976@gmail.com>
+ * @link https://github.com/eduluz1976/task
+ */
 class Task {
+    use AttachmentManager;
+    use StateLifeCycleManagement;
 
     protected $uid;
 
@@ -12,16 +20,6 @@ class Task {
      * @var \eduluz1976\action\Action
      */
     protected $action;
-
-    /**
-     * @var Task
-     */
-    protected $taskCallbackOk;
-
-    /**
-     * @var Task
-     */
-    protected $taskCallbackError;
 
     /**
      * @var Parameters
@@ -32,11 +30,6 @@ class Task {
      * @var Parameters
      */
     protected $output;
-
-    /**
-     * @var array
-     */
-    protected $states = [];
 
 
     /**
@@ -60,42 +53,6 @@ class Task {
     public function setAction(\eduluz1976\action\Action $action): Task
     {
         $this->action = $action;
-        return $this;
-    }
-
-    /**
-     * @return Task
-     */
-    public function getTaskCallbackOk()
-    {
-        return $this->taskCallbackOk;
-    }
-
-    /**
-     * @param Task $taskCallbackOk
-     * @return Task
-     */
-    public function setTaskCallbackOk(Task $taskCallbackOk)
-    {
-        $this->taskCallbackOk = $taskCallbackOk;
-        return $this;
-    }
-
-    /**
-     * @return Task
-     */
-    public function getTaskCallbackError()
-    {
-        return $this->taskCallbackError;
-    }
-
-    /**
-     * @param Task $taskCallbackError
-     * @return Task
-     */
-    public function setTaskCallbackError(Task $taskCallbackError)
-    {
-        $this->taskCallbackError = $taskCallbackError;
         return $this;
     }
 
@@ -177,35 +134,23 @@ class Task {
         return $this;
     }
 
-    /**
-     * @return array
-     */
-    public function getStates(): array
-    {
-        return $this->states;
-    }
+
 
     /**
-     * @param array $states
-     * @return Task
+     * @param $s
      */
-    public function setStates(array $states): Task
-    {
-        $this->states = $states;
-        return $this;
-    }
-
-
-
-
-
     protected function addState($s) {
-        $this->states[] = [microtime(true), $s];
-//        echo "\n $s ";
+        if ($this->getExecutionWrapper()->getLogger()) {
+            $this->getExecutionWrapper()->getLogger()->log($s);
+        }
+        $this->pushState($s);
     }
 
 
-
+    /**
+     * Task constructor.
+     * @param ExecutionWrapperInterface $wrapper
+     */
     public function __construct(ExecutionWrapperInterface $wrapper)
     {
         $this->setUid(hash('sha256', random_bytes(32).microtime()));
@@ -214,57 +159,65 @@ class Task {
     }
 
 
+    /**
+     *
+     * @param Action $action
+     * @param array $additionalParameters
+     * @return array
+     */
     protected function execute(Action $action,$additionalParameters=[]) {
-
+        try {
+        $this->addState('Starting task execution '.$this->uid);
 
         $action->exec($additionalParameters);
 
-        if ($this->getActionCallbackOk()) {
-            $finalResponse = $this->getActionCallbackOk()->exec($this->action->getResponse()->getList());
-            $this->getOutput()->addList($finalResponse);
-        } else {
-            $this->getOutput()->addList($this->action->getResponse()->getList());
+        $this->addState('Execution ok');
+
+        $newParameters = array_replace($additionalParameters, $action->getResponse()->getList());
+
+        $resp = $this->evaluateAttachments($newParameters);
+
+        if (is_array($resp)) {
+            $this->getOutput()->addList($resp);
         }
 
+        } catch (\Exception $ex) {
+            $this->addState("Error: " . $ex->getMessage());
+
+            $this->evaluateErrorAttachment();
+        }
+        return $this->getOutput()->getList();
     }
 
 
+    /**
+     * Execute this task.
+     *
+     * @param array $additionalParameters
+     * @return array|mixed
+     */
     public function exec($additionalParameters=[]) {
         try {
-            $this->addState('Starting task execution '.$this->uid);
+            $resp = $this->execute($this->getAction(),$additionalParameters);
+            $result = array_replace($this->getAction()->getResponse()->getList(),$resp);
 
-            $this->getAction()->exec($additionalParameters);
+            $this->getOutput()->addList($result);
 
+            $response = $this->getOutput()->getList();
 
-            $this->addState('Execution ok');
-
-            $response = $this->getAction()->getResponse()->getList();
-
-            if ($this->getTaskCallbackOk()) {
-                $finalResponse = $this->getTaskCallbackOk()->exec($response);
-
-                $this->getOutput()->addList($this->getTaskCallbackOk()->getOutput()->getList());
+            if (is_array($response)) {
+                return reset($response);
             } else {
-                $this->getOutput()->addList($response);
-                $finalResponse = $response;
-            }
-            if (is_array($finalResponse)) {
-                return reset($finalResponse);
-            } else {
-                return $finalResponse;
+                return $response;
             }
 
         } catch (\Exception $ex) {
             $this->addState("Error: " . $ex->getMessage());
-            if ($this->getTaskCallbackError()) {
-                $this->addState("Executing error-handling action");
-                $output = $this->getTaskCallbackError()->exec($additionalParameters);
-                $this->addState("Error-handling action executed");
-                $this->getOutput()->addList($this->getTaskCallbackError()->getOutput()->getList());
-            }
+            $this->evaluateErrorAttachment();
         }
     }
 
 
 
+    
 }

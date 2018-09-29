@@ -21,4 +21,12 @@ class TaskTest extends \PHPUnit\Framework\TestCase
     }
 
 
+    public function testInput() {
+        $task = new Task(new ExecutionWrapper());
+        $task->getInput()->add('name','John');
+        $this->assertEquals('John', $task->getInput()->get('name'));
+    }
+
+
+
 }

@@ -1,7 +1,12 @@
 <?php
 namespace eduluz1976\task;
 
-
+/**
+ * Interface ExecutionWrapperInterface
+ * @package eduluz1976\task
+ * @author Eduardo Luz <eduluz1976@gmail.com>
+ * @link https://github.com/eduluz1976/task
+ */
 interface ExecutionWrapperInterface {
 
     /**
