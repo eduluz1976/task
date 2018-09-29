@@ -1,7 +1,12 @@
 <?php
 namespace eduluz1976\task;
 
-
+/**
+ * Class ExecutionWrapper
+ * @package eduluz1976\task
+ * @author Eduardo Luz <eduluz1976@gmail.com>
+ * @link https://github.com/eduluz1976/task
+ */
 class ExecutionWrapper implements ExecutionWrapperInterface {
 
     protected $dbConn;
@@ -26,7 +31,7 @@ class ExecutionWrapper implements ExecutionWrapperInterface {
      */
     public function getLogger()
     {
-        // TODO: Implement getLogger() method.
+        return $this->logger;
     }
 
     /**
@@ -94,7 +99,7 @@ class ExecutionWrapper implements ExecutionWrapperInterface {
         $this->session = $session;
         return $this;
     }
-        
+
 
 
 }
